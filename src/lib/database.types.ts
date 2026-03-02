@@ -330,7 +330,7 @@ export interface Database {
       };
       pet_profiles: {
         Row: {
-          id: string;
+          id: number;
           name: string;
           owner_name: string;
           owner_nickname: string;
@@ -351,7 +351,7 @@ export interface Database {
           user_id: number;
         };
         Insert: {
-          id?: string;
+          id?: number;
           name: string;
           owner_name?: string;
           owner_nickname?: string;
@@ -372,7 +372,7 @@ export interface Database {
           user_id: number;
         };
         Update: {
-          id?: string;
+          id?: number;
           name?: string;
           owner_name?: string;
           owner_nickname?: string;
