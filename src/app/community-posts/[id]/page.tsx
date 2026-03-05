@@ -20,6 +20,12 @@ export default async function CommunityPostDetailPage({ params }: Props) {
 
   if (!data) notFound();
 
+  const { data: participants } = await supabase
+    .from("community_post_participants")
+    .select("*")
+    .eq("post_id", id)
+    .order("created_at", { ascending: true });
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
@@ -52,8 +58,31 @@ export default async function CommunityPostDetailPage({ params }: Props) {
           {data.write_date && (
             <Section label="작성 날짜">{data.write_date}</Section>
           )}
+          {data.meetup_datetime && (
+            <Section label="모임 일시">{formatDate(data.meetup_datetime)}</Section>
+          )}
+          {data.meetup_location && (
+            <Section label="모임 장소">{data.meetup_location}</Section>
+          )}
+          {data.country_code && (
+            <Section label="국가 코드">
+              <Badge variant="outline">{data.country_code}</Badge>
+            </Section>
+          )}
         </div>
       </div>
+
+      {participants && participants.length > 0 && (
+        <Section label={`참여자 (${participants.length}명)`}>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {participants.map((p) => (
+              <Badge key={p.id} variant="secondary">
+                {p.user_name || `User #${p.user_id}`}
+              </Badge>
+            ))}
+          </div>
+        </Section>
+      )}
 
       <Section label="내용 (한국어)">
         <p className="text-sm whitespace-pre-wrap rounded-md bg-muted p-4">

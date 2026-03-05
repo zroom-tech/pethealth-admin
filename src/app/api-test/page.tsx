@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-type Tab = "food" | "stool" | "package" | "diary" | "comment";
+type Tab = "food" | "stool" | "package" | "package-by-name" | "diary" | "comment";
 
 export default function ApiTestPage() {
   const [activeTab, setActiveTab] = useState<Tab>("food");
@@ -20,6 +20,7 @@ export default function ApiTestPage() {
     { key: "food", label: "사료 분석" },
     { key: "stool", label: "배변 분석" },
     { key: "package", label: "포장지 분석" },
+    { key: "package-by-name", label: "포장지 분석 (이름)" },
     { key: "diary", label: "일기 생성" },
     { key: "comment", label: "댓글 생성" },
   ];
@@ -46,6 +47,7 @@ export default function ApiTestPage() {
       {activeTab === "food" && <AnalyzeFoodTest />}
       {activeTab === "stool" && <AnalyzeStoolTest />}
       {activeTab === "package" && <AnalyzeFoodPackageTest />}
+      {activeTab === "package-by-name" && <AnalyzeFoodPackageByNameTest />}
       {activeTab === "diary" && <WriteDiaryTest />}
       {activeTab === "comment" && <WriteCommentTest />}
     </div>
@@ -285,6 +287,53 @@ function AnalyzeFoodPackageTest() {
           <Button type="submit" disabled={loading || !file}>
             {loading && <Loader2 className="size-4 animate-spin" />}
             {loading ? "분석 중..." : "포장지 분석"}
+          </Button>
+        </form>
+        <ResultDisplay result={result} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function AnalyzeFoodPackageByNameTest() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ status: number; data: unknown } | null>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setResult(null);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const foodName = (formData.get("food_name") as string).trim();
+
+      const res = await callEdgeFunction("analyze-food-package-by-name", {
+        food_name: foodName,
+      });
+      setResult(res);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">POST /functions/v1/analyze-food-package-by-name</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="package_food_name">사료 이름 (필수)</Label>
+            <Input
+              id="package_food_name"
+              name="food_name"
+              placeholder="예: 로얄캐닌 미니 어덜트"
+            />
+          </div>
+          <Button type="submit" disabled={loading || false}>
+            {loading && <Loader2 className="size-4 animate-spin" />}
+            {loading ? "분석 중..." : "이름으로 분석"}
           </Button>
         </form>
         <ResultDisplay result={result} />

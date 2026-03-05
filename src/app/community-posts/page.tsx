@@ -128,6 +128,7 @@ function PostFilters({
         <option value="free">자유</option>
         <option value="health">건강</option>
         <option value="food">사료</option>
+        <option value="meetup">모임</option>
       </select>
       <button
         type="submit"

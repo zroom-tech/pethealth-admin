@@ -64,6 +64,7 @@ export default async function PetProfileDetailPage({ params }: Props) {
             <Row label="성별" value={genderLabel[pet.gender] ?? pet.gender} />
             <Row label="생년월일" value={pet.birth_date ? new Date(pet.birth_date).toLocaleDateString("ko-KR") : null} />
             <Row label="체중" value={pet.weight_kg ? `${pet.weight_kg}kg` : null} />
+            <Row label="국가 코드" value={pet.country_code} />
             <Row label="등록일" value={formatDate(pet.created_at)} />
             <Row label="수정일" value={formatDate(pet.updated_at)} />
           </CardContent>
@@ -89,7 +90,6 @@ export default async function PetProfileDetailPage({ params }: Props) {
             </CardHeader>
             <CardContent className="space-y-3">
               <Row label="보호자명(앱)" value={pet.owner_name} />
-              <Row label="보호자 호칭" value={pet.owner_nickname} />
               {owner ? (
                 <>
                   <Row label="계정 이름" value={owner.name} />

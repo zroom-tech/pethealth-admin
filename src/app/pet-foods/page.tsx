@@ -84,10 +84,10 @@ export default async function PetFoodsPage({ searchParams }: Props) {
       render: (row) => formatDate(row.created_at),
     },
     {
-      key: "updated_at",
-      header: "수정일",
-      className: "w-36",
-      render: (row) => formatDate(row.updated_at),
+      key: "calories_per_100g",
+      header: "칼로리",
+      className: "w-24",
+      render: (row) => row.calories_per_100g ? `${row.calories_per_100g}kcal` : "-",
     },
     {
       key: "actions",

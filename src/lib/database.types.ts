@@ -170,10 +170,15 @@ export interface Database {
           content: string;
           content_en: string | null;
           image_url: string | null;
+          image_urls: Json | null;
           is_anonymous: boolean;
           latitude: number | null;
           longitude: number | null;
           write_date: string | null;
+          country_code: string | null;
+          user_name: string | null;
+          meetup_datetime: string | null;
+          meetup_location: string | null;
           created_at: string;
         };
         Insert: {
@@ -188,10 +193,15 @@ export interface Database {
           content: string;
           content_en?: string | null;
           image_url?: string | null;
+          image_urls?: Json | null;
           is_anonymous?: boolean;
           latitude?: number | null;
           longitude?: number | null;
           write_date?: string | null;
+          country_code?: string | null;
+          user_name?: string | null;
+          meetup_datetime?: string | null;
+          meetup_location?: string | null;
           created_at?: string;
         };
         Update: {
@@ -206,10 +216,15 @@ export interface Database {
           content?: string;
           content_en?: string | null;
           image_url?: string | null;
+          image_urls?: Json | null;
           is_anonymous?: boolean;
           latitude?: number | null;
           longitude?: number | null;
           write_date?: string | null;
+          country_code?: string | null;
+          user_name?: string | null;
+          meetup_datetime?: string | null;
+          meetup_location?: string | null;
           created_at?: string;
         };
       };
@@ -220,6 +235,7 @@ export interface Database {
           user_id: number;
           pet_name: string;
           pet_species: string | null;
+          pet_profile_id: number | null;
           content: string;
           content_en: string | null;
           is_anonymous: boolean;
@@ -231,6 +247,7 @@ export interface Database {
           user_id: number;
           pet_name: string;
           pet_species?: string | null;
+          pet_profile_id?: number | null;
           content: string;
           content_en?: string | null;
           is_anonymous?: boolean;
@@ -242,6 +259,7 @@ export interface Database {
           user_id?: number;
           pet_name?: string;
           pet_species?: string | null;
+          pet_profile_id?: number | null;
           content?: string;
           content_en?: string | null;
           is_anonymous?: boolean;
@@ -277,6 +295,7 @@ export interface Database {
           uid: string;
           providers: string | null;
           name: string | null;
+          nickname: string | null;
           email: string | null;
           phone: string | null;
           status: string;
@@ -288,6 +307,10 @@ export interface Database {
           streak_longest: number;
           streak_last_date: string | null;
           membership_expires_at: string | null;
+          home_latitude: number | null;
+          home_longitude: number | null;
+          country_code: string | null;
+          user_name: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -295,6 +318,7 @@ export interface Database {
           uid: string;
           providers?: string | null;
           name?: string | null;
+          nickname?: string | null;
           email?: string | null;
           phone?: string | null;
           status?: string;
@@ -306,6 +330,10 @@ export interface Database {
           streak_longest?: number;
           streak_last_date?: string | null;
           membership_expires_at?: string | null;
+          home_latitude?: number | null;
+          home_longitude?: number | null;
+          country_code?: string | null;
+          user_name?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -313,6 +341,7 @@ export interface Database {
           uid?: string;
           providers?: string | null;
           name?: string | null;
+          nickname?: string | null;
           email?: string | null;
           phone?: string | null;
           status?: string;
@@ -324,8 +353,35 @@ export interface Database {
           streak_longest?: number;
           streak_last_date?: string | null;
           membership_expires_at?: string | null;
+          home_latitude?: number | null;
+          home_longitude?: number | null;
+          country_code?: string | null;
+          user_name?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      community_post_participants: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: number;
+          user_name: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          user_id: number;
+          user_name?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          user_id?: number;
+          user_name?: string | null;
+          created_at?: string;
         };
       };
       pet_profiles: {
@@ -333,7 +389,6 @@ export interface Database {
           id: number;
           name: string;
           owner_name: string;
-          owner_nickname: string;
           gender: string;
           species: string;
           breed: string;
@@ -349,12 +404,12 @@ export interface Database {
           home_latitude: number | null;
           home_longitude: number | null;
           user_id: number;
+          country_code: string | null;
         };
         Insert: {
           id?: number;
           name: string;
           owner_name?: string;
-          owner_nickname?: string;
           gender?: string;
           species?: string;
           breed?: string;
@@ -370,12 +425,12 @@ export interface Database {
           home_latitude?: number | null;
           home_longitude?: number | null;
           user_id: number;
+          country_code?: string | null;
         };
         Update: {
           id?: number;
           name?: string;
           owner_name?: string;
-          owner_nickname?: string;
           gender?: string;
           species?: string;
           breed?: string;
@@ -391,6 +446,7 @@ export interface Database {
           home_latitude?: number | null;
           home_longitude?: number | null;
           user_id?: number;
+          country_code?: string | null;
         };
       };
       point_transactions: {
@@ -525,37 +581,37 @@ export interface Database {
       pet_foods: {
         Row: {
           id: string;
-          dedup_key: string;
+          food_key: string;
           brand: string;
           brand_en: string;
           product_name: string;
           product_name_en: string;
           species: string;
+          calories_per_100g: number | null;
           data: Json;
           created_at: string;
-          updated_at: string;
         };
         Insert: {
-          dedup_key: string;
+          food_key: string;
           brand?: string;
           brand_en?: string;
           product_name?: string;
           product_name_en?: string;
           species?: string;
+          calories_per_100g?: number | null;
           data: Json;
           created_at?: string;
-          updated_at?: string;
         };
         Update: {
-          dedup_key?: string;
+          food_key?: string;
           brand?: string;
           brand_en?: string;
           product_name?: string;
           product_name_en?: string;
           species?: string;
+          calories_per_100g?: number | null;
           data?: Json;
           created_at?: string;
-          updated_at?: string;
         };
       };
       deleted_accounts: {

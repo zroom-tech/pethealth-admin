@@ -19,7 +19,7 @@ export async function updatePetFood(
 
   const { error } = await supabase
     .from("pet_foods")
-    .update({ ...payload, updated_at: new Date().toISOString() })
+    .update(payload)
     .eq("id", id);
 
   if (error) throw new Error(error.message);

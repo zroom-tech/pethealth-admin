@@ -56,9 +56,12 @@ export default async function UserDetailPage({ params }: Props) {
           <CardContent className="space-y-3">
             <Row label="ID" value={String(user.id)} />
             <Row label="이름" value={user.name} />
+            <Row label="닉네임" value={user.nickname} />
             <Row label="이메일" value={user.email} />
             <Row label="전화번호" value={user.phone} />
             <Row label="로그인 방식" value={user.providers} />
+            <Row label="유저네임" value={user.user_name} />
+            <Row label="국가 코드" value={user.country_code} />
             <div className="flex items-center justify-between py-1">
               <span className="text-sm text-muted-foreground">상태</span>
               <Badge variant={statusColor[user.status] ?? "default"}>{user.status}</Badge>

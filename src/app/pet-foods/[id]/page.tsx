@@ -29,7 +29,7 @@ export default async function PetFoodDetailPage({ params }: Props) {
         </Link>
         <h1 className="text-2xl font-bold">사료 정보 #{row.id}</h1>
         <span className="text-sm text-muted-foreground">
-          등록: {formatDate(row.created_at)} · 수정: {formatDate(row.updated_at)}
+          등록: {formatDate(row.created_at)}
         </span>
       </div>
 

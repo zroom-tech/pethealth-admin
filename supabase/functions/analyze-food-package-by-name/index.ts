@@ -1,0 +1,422 @@
+// supabase/functions/analyze-food-package-by-name/index.ts
+// 사료 이름(텍스트)을 입력받아 분석하는 Edge Function
+// 응답 형식은 analyze-food-package와 동일
+
+// deno-lint-ignore no-unversioned-import
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import { analyzeTextWithGemini } from "../_shared/gemini.ts";
+import type { ApiResponse } from "../_shared/types.ts";
+
+// --- 응답 타입 (analyze-food-package와 동일) ---
+interface Variant {
+  weight: string;
+  packaging: string;
+  form: string;
+  barcode: string;
+}
+
+interface Package {
+  unit: string;
+  material: string;
+  resealable: boolean;
+}
+
+interface Product {
+  name: string;
+  name_en: string;
+  product_species: string[];
+  variants: Variant[];
+  packages: Package[];
+}
+
+interface Ingredient {
+  name: string;
+  name_en: string;
+  order: number;
+  percentage: number | null;
+  label_name: string;
+}
+
+interface Nutrient {
+  name: string;
+  name_en: string;
+  value: number;
+  unit: string;
+  basis: string;
+}
+
+interface FeedingGuide {
+  weight_kg_min: number;
+  weight_kg_max: number;
+  age_range: string;
+  daily_amount_g: string;
+}
+
+interface VariantSuitability {
+  feeding_age: string;
+  breed_size: string;
+  body_condition: string;
+}
+
+interface KibbleProperties {
+  size: string;
+  shape: string;
+  hardness: string;
+}
+
+interface Claim {
+  name: string;
+  name_en: string;
+}
+
+interface Certification {
+  name: string;
+  name_en: string;
+}
+
+interface Recall {
+  date: string;
+  reason: string;
+  reason_en: string;
+}
+
+interface FoodPackageResult {
+  brand: string;
+  brand_en: string;
+  manufacturer: string;
+  manufacturer_en: string;
+  species: string;
+  life_stages: string[];
+  diet_types: string[];
+  calories_per_100g: number;
+  products: Product[];
+  ingredients: Ingredient[];
+  nutrients: Nutrient[];
+  feeding_guides: FeedingGuide[];
+  age_ranges: string[];
+  variant_suitability: VariantSuitability;
+  kibble_properties: KibbleProperties;
+  claims: Claim[];
+  certifications: Certification[];
+  recalls: Recall[];
+}
+
+// --- 프롬프트 ---
+function buildPrompt(foodName: string): string {
+  return `# 역할
+당신은 반려동물 사료 제품 분석 전문가입니다.
+
+# 작업
+사료 이름 "${foodName}"에 대해 알고 있는 모든 정보를 종합하여 아래 항목들을 최대한 상세하게 조사/작성하세요.
+
+해당 제품에 대한 공식 정보나 기존 지식을 기반으로 채워주세요. 전혀 알 수 없는 항목은 빈 값(빈 문자열, 빈 배열, null)으로 남겨주세요.
+
+# 추출 항목
+
+## 1. 브랜드 정보
+- brand: 브랜드명 (한국어)
+- brand_en: 브랜드명 (영어)
+- manufacturer: 제조사명 (한국어)
+- manufacturer_en: 제조사명 (영어)
+- species: 대상 동물 (dog, cat, bird, fish, reptile, dragon, other 중 하나)
+- life_stages: 대상 생애 단계 배열 (puppy, kitten, adult, senior, all 중)
+- diet_types: 사료 유형 배열 (dry, wet, freeze-dried, raw, treat 중)
+- calories_per_100g: 100g당 칼로리 (kcal). 해당 제품의 알려진 칼로리 정보를 기반으로 반드시 작성하세요. 0은 허용하지 않습니다.
+
+## 2. 제품 정보
+- products: 제품 배열. 각 제품은:
+  - name: 제품명 (한국어)
+  - name_en: 제품명 (영어)
+  - product_species: 지원 동물종 배열 (영어, 예: ["dog"], ["dog", "cat"])
+  - variants: SKU 변형 배열. 각 항목은 (모든 값을 영어로 작성):
+    - weight: 중량 (예: "2kg", "500g")
+    - packaging: 포장 형태 (예: "zip bag", "can", "pouch")
+    - form: 형태 (예: "dry kibble", "wet", "freeze-dried")
+    - barcode: 바코드 (알고 있는 경우)
+  - packages: 포장 옵션 배열. 각 항목은 (모든 값을 영어로 작성):
+    - unit: 포장 단위 (예: "1kg", "3kg multi-pack")
+    - material: 포장 재질 (예: "aluminum pouch", "plastic")
+    - resealable: 리씰 가능 여부
+
+## 3. 원재료 및 영양성분 (⚠️ 가장 중요한 항목 - 절대 빈 배열로 두지 마세요)
+
+### ingredients (원재료) - 필수
+반드시 최소 5개 이상의 원재료를 포함해야 합니다.
+1순위: 해당 제품(브랜드+제품명)의 공식 원재료 정보를 기반으로 작성
+2순위: 정확한 제품 정보를 모르면, 해당 사료 유형(건사료/습식 등)과 대상 동물의 일반적인 원재료 구성으로 추정
+- 각 항목:
+  - name: 원재료명 (한국어)
+  - name_en: 원재료명 (영어)
+  - order: 표기 순서 (1부터 시작, 함량 많은 순)
+  - percentage: 함량 비율 (알고 있는 경우, 없으면 null)
+  - label_name: 공식 표기명 (모르면 name과 동일하게)
+
+### nutrients (영양성분) - 필수
+반드시 아래 핵심 영양소를 모두 포함해야 합니다:
+- 조단백질 (Crude Protein)
+- 조지방 (Crude Fat)
+- 조섬유 (Crude Fiber)
+- 수분 (Moisture)
+- 조회분 (Crude Ash)
+- 칼슘 (Calcium)
+- 인 (Phosphorus)
+
+추가로 알 수 있는 성분도 모두 포함하세요 (오메가-3, 오메가-6, 타우린, DHA 등).
+1순위: 해당 제품의 공식 영양성분 정보
+2순위: 해당 사료 유형의 일반적인 영양성분 범위로 추정
+- 각 항목:
+  - name: 성분명 (한국어, 예: "조단백질")
+  - name_en: 성분명 (영어, 예: "Crude Protein")
+  - value: 수치 (반드시 0이 아닌 값)
+  - unit: 단위 (%, g, mg, kcal 등)
+  - basis: 기준 ("as-fed" 또는 "dry-matter")
+
+## 4. 급여 가이드
+- feeding_guides: 급여 가이드 배열. 각 항목은 (모든 값을 영어로 작성):
+  - weight_kg_min: 체중 범위 최소 (kg)
+  - weight_kg_max: 체중 범위 최대 (kg)
+  - age_range: 연령 범위 (예: "2-12 months", "adult")
+  - daily_amount_g: 일일 급여량 (예: "50-70g")
+- age_ranges: 적합 연령 범위 배열, 영어로 작성 (예: ["2-12 months", "1-7 years"])
+- variant_suitability: 급여 적합성 (모든 값을 영어로 작성)
+  - feeding_age: 적합 연령 (예: "adult", "all ages")
+  - breed_size: 견종 크기 (예: "small", "all breeds")
+  - body_condition: 체형 조건 (예: "normal", "weight management")
+- kibble_properties: 알갱이 특성 (모든 값을 영어로 작성)
+  - size: 크기 (예: "8mm", "small")
+  - shape: 형태 (예: "round", "triangular")
+  - hardness: 경도 (예: "medium", "hard")
+
+## 5. 클레임 및 인증
+- claims: 제품 주장 배열. 각 항목은:
+  - name: 클레임 (한국어, 예: "그레인프리")
+  - name_en: 클레임 (영어, 예: "grain-free")
+- certifications: 인증 배열. 각 항목은:
+  - name: 인증명 (한국어, 예: "미국사료관리협회 인증")
+  - name_en: 인증명 (영어, 예: "AAFCO")
+- recalls: 리콜 이력 배열. 각 항목은:
+  - date: 리콜 날짜
+  - reason: 리콜 사유 (한국어)
+  - reason_en: 리콜 사유 (영어)
+
+# 출력 규칙
+- 반드시 JSON 형식으로만 응답
+- ⚠️ ingredients와 nutrients는 절대 빈 배열([])이면 안 됩니다. 반드시 제품 지식이나 일반적인 사료 정보를 기반으로 채워야 합니다.
+- nutrients에는 최소 조단백질, 조지방, 조섬유, 수분, 조회분, 칼슘, 인 7개를 반드시 포함
+- ingredients에는 최소 5개 이상의 원재료를 반드시 포함
+- 모르는 정보는 빈 값으로 남기되, 최대한 채워주세요
+- ingredients의 order는 함량 많은 순
+- nutrients의 basis는 대부분 "as-fed"`;
+}
+
+// --- Gemini 응답 스키마 (analyze-food-package와 동일) ---
+const RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    brand: { type: "string" },
+    brand_en: { type: "string" },
+    manufacturer: { type: "string" },
+    manufacturer_en: { type: "string" },
+    species: {
+      type: "string",
+      enum: ["dog", "cat", "bird", "fish", "reptile", "dragon", "other"],
+    },
+    life_stages: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: ["puppy", "kitten", "adult", "senior", "all"],
+      },
+    },
+    diet_types: {
+      type: "array",
+      items: {
+        type: "string",
+        enum: ["dry", "wet", "freeze-dried", "raw", "treat"],
+      },
+    },
+    calories_per_100g: { type: "number" },
+    products: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          name_en: { type: "string" },
+          product_species: { type: "array", items: { type: "string" } },
+          variants: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                weight: { type: "string" },
+                packaging: { type: "string" },
+                form: { type: "string" },
+                barcode: { type: "string" },
+              },
+              required: ["weight", "packaging", "form", "barcode"],
+            },
+          },
+          packages: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                unit: { type: "string" },
+                material: { type: "string" },
+                resealable: { type: "boolean" },
+              },
+              required: ["unit", "material", "resealable"],
+            },
+          },
+        },
+        required: ["name", "name_en", "product_species", "variants", "packages"],
+      },
+    },
+    ingredients: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          name_en: { type: "string" },
+          order: { type: "integer" },
+          percentage: { type: "number", nullable: true },
+          label_name: { type: "string" },
+        },
+        required: ["name", "name_en", "order", "label_name"],
+      },
+    },
+    nutrients: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          name_en: { type: "string" },
+          value: { type: "number" },
+          unit: { type: "string" },
+          basis: { type: "string", enum: ["as-fed", "dry-matter"] },
+        },
+        required: ["name", "name_en", "value", "unit", "basis"],
+      },
+    },
+    feeding_guides: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          weight_kg_min: { type: "number" },
+          weight_kg_max: { type: "number" },
+          age_range: { type: "string" },
+          daily_amount_g: { type: "string" },
+        },
+        required: ["weight_kg_min", "weight_kg_max", "age_range", "daily_amount_g"],
+      },
+    },
+    age_ranges: { type: "array", items: { type: "string" } },
+    variant_suitability: {
+      type: "object",
+      properties: {
+        feeding_age: { type: "string" },
+        breed_size: { type: "string" },
+        body_condition: { type: "string" },
+      },
+      required: ["feeding_age", "breed_size", "body_condition"],
+    },
+    kibble_properties: {
+      type: "object",
+      properties: {
+        size: { type: "string" },
+        shape: { type: "string" },
+        hardness: { type: "string" },
+      },
+      required: ["size", "shape", "hardness"],
+    },
+    claims: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          name_en: { type: "string" },
+        },
+        required: ["name", "name_en"],
+      },
+    },
+    certifications: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          name_en: { type: "string" },
+        },
+        required: ["name", "name_en"],
+      },
+    },
+    recalls: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          date: { type: "string" },
+          reason: { type: "string" },
+          reason_en: { type: "string" },
+        },
+        required: ["date", "reason", "reason_en"],
+      },
+    },
+  },
+  required: [
+    "brand", "brand_en", "manufacturer", "manufacturer_en", "species", "life_stages", "diet_types", "calories_per_100g",
+    "products", "ingredients", "nutrients", "feeding_guides",
+    "age_ranges", "variant_suitability", "kibble_properties",
+    "claims", "certifications", "recalls",
+  ],
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const { food_name } = await req.json();
+
+    if (!food_name || typeof food_name !== "string") {
+      return new Response(
+        JSON.stringify({ success: false, error: "사료 이름이 필요합니다. food_name 필드를 포함해주세요." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const geminiResult = (await analyzeTextWithGemini({
+      prompt: buildPrompt(food_name),
+      responseSchema: RESPONSE_SCHEMA,
+    })) as unknown as FoodPackageResult;
+
+    const response: ApiResponse<FoodPackageResult> = {
+      success: true,
+      data: geminiResult,
+    };
+
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error("analyze-food-by-name error:", error);
+    const response: ApiResponse<never> = {
+      success: false,
+      error: error instanceof Error
+        ? error.message
+        : "알 수 없는 오류가 발생했습니다.",
+    };
+    return new Response(JSON.stringify(response), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

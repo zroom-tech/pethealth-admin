@@ -60,6 +60,12 @@ export default async function UsersPage({ searchParams }: Props) {
       ),
     },
     {
+      key: "nickname",
+      header: "닉네임",
+      className: "w-28",
+      render: (row) => row.nickname || "-",
+    },
+    {
       key: "email",
       header: "이메일",
       render: (row) => row.email || "-",
