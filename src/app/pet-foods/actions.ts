@@ -28,6 +28,30 @@ export async function updatePetFood(
   revalidatePath("/pet-foods");
 }
 
+export async function createPetFood(payload: {
+  food_key: string;
+  brand: string;
+  brand_en: string;
+  product_name: string;
+  product_name_en: string;
+  species: string;
+  calories_per_100g: number | null;
+  data: Json;
+}) {
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("pet_foods")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/pet-foods");
+  return data.id;
+}
+
 export async function deletePetFood(id: string) {
   const supabase = createAdminClient();
 

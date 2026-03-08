@@ -13,6 +13,7 @@ import {
   UtensilsCrossed,
   Footprints,
   Package,
+  HelpCircle,
 } from "lucide-react";
 
 export const PAGE_SIZE = 20;
@@ -31,5 +32,6 @@ export const NAV_ITEMS = [
   { href: "/community-posts", label: "커뮤니티", icon: MessageSquare },
   { href: "/user-mails", label: "우편함", icon: Mail },
   { href: "/notices", label: "공지사항", icon: Megaphone },
+  { href: "/inquiries", label: "문의하기", icon: HelpCircle },
   { href: "/api-test", label: "엣지펑션 테스트", icon: FlaskConical },
 ] as const;

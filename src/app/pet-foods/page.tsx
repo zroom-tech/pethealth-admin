@@ -6,6 +6,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import type { Tables } from "@/lib/database.types";
 import { DeletePetFoodButton } from "./delete-button";
+import { AddByNameDialog } from "./add-by-name-dialog";
 
 type PetFood = Tables<"pet_foods">;
 
@@ -103,7 +104,10 @@ export default async function PetFoodsPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">사료 정보</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">사료 정보</h1>
+        <AddByNameDialog />
+      </div>
       <PetFoodFilters q={q} species={species} />
       <DataTable
         columns={columns}

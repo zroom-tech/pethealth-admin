@@ -856,6 +856,7 @@ export interface Database {
           image_url: string | null;
           pet_comment: string | null;
           pet_comment_en: string | null;
+          route_coordinates: Json | null;
           created_at: string;
         };
         Insert: {
@@ -870,6 +871,7 @@ export interface Database {
           image_url?: string | null;
           pet_comment?: string | null;
           pet_comment_en?: string | null;
+          route_coordinates?: Json | null;
           created_at?: string;
         };
         Update: {
@@ -884,6 +886,7 @@ export interface Database {
           image_url?: string | null;
           pet_comment?: string | null;
           pet_comment_en?: string | null;
+          route_coordinates?: Json | null;
           created_at?: string;
         };
       };
@@ -907,6 +910,69 @@ export interface Database {
           user_id?: number;
           pet_profile_id?: number | null;
           weight_kg?: number;
+          record_date?: string;
+          created_at?: string;
+        };
+      };
+      inquiry: {
+        Row: {
+          id: number;
+          user_id: number;
+          category: string;
+          title: string;
+          body: string;
+          email: string;
+          image_url: string | null;
+          is_processed: boolean;
+          admin_reply: string | null;
+          admin_replied_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          user_id: number;
+          category: string;
+          title: string;
+          body: string;
+          email?: string;
+          image_url?: string | null;
+          is_processed?: boolean;
+          admin_reply?: string | null;
+          admin_replied_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: number;
+          category?: string;
+          title?: string;
+          body?: string;
+          email?: string;
+          image_url?: string | null;
+          is_processed?: boolean;
+          admin_reply?: string | null;
+          admin_replied_at?: string | null;
+          created_at?: string;
+        };
+      };
+      user_poop_bag_records: {
+        Row: {
+          id: number;
+          user_id: number;
+          pet_profile_id: number | null;
+          image_url: string | null;
+          record_date: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: number;
+          pet_profile_id?: number | null;
+          image_url?: string | null;
+          record_date: string;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: number;
+          pet_profile_id?: number | null;
+          image_url?: string | null;
           record_date?: string;
           created_at?: string;
         };
