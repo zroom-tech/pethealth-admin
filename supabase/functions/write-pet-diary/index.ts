@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
           temperature: 1.0,
           topP: 0.95,
           topK: 40,
-          maxOutputTokens: 1200,
+          maxOutputTokens: 4096,
           responseMimeType: "application/json",
           responseSchema: {
             type: "object",
@@ -97,7 +97,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    const parsed = JSON.parse(rawText);
+    // Gemini가 가끔 markdown 코드블럭으로 감싸서 반환하는 경우 처리
+    let jsonText = rawText;
+    const fenceMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) jsonText = fenceMatch[1].trim();
+
+    let parsed: Record<string, string>;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      console.error("[write-pet-diary] JSON parse failed, raw:", rawText);
+      return new Response(
+        JSON.stringify({ error: "AI 응답 파싱 실패", raw: rawText }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const diary = parsed.ko?.trim() ?? "";
     const diaryEn = parsed.en?.trim() ?? "";
 
@@ -135,7 +150,6 @@ function buildPrompt(data: DiaryRequest): string {
     foodMemos = [],
     groomingRecords = [],
     checkupRecords = [],
-    previousDiaries = [],
   } = data;
 
   const speciesLabel = petSpecies ? petSpecies : "dog";
@@ -188,10 +202,6 @@ function buildPrompt(data: DiaryRequest): string {
 
   const activityBlock = activityLines.join("\n");
 
-  const previousBlock = previousDiaries.length > 0
-    ? `\n## 최근 작성된 일기 (중복 방지용)\n${previousDiaries.map((d, i) => `${i + 1}. "${d}"`).join("\n")}\n`
-    : "";
-
   return `오늘 하루의 일기를 써줘.
 한국어와 영어 두 버전을 작성해야 해. 영어 버전은 단순 번역이 아니라, 같은 하루를 영어권 말투로 자연스럽게 다시 쓴 것이어야 해.
 
@@ -202,13 +212,15 @@ ${personalityGuide}${descriptionGuide}${ownerGuide}
 
 ## 오늘의 참고 데이터
 ${activityBlock}
-${previousBlock}
+
 ## 작성 규칙
 1. 기록들을 참고해서 일기를 작성해.
-2. 분량은 각 언어별 8~10문장. 너무 길지 않게.
+2. 분량은 각 언어별 6~8문장. 너무 길지 않게.
 3. 제목이나 날짜 없이, 일기 본문만 작성해.
-4. "최근 작성된 일기"가 있다면, 그 내용과 비슷한 문장, 표현, 에피소드, 전개 방식을 피해서 새롭게 써. 같은 주제라도 다른 관점이나 감정으로 접근해. 특히 처음 시작하는 문장은 완전히 내용이 달라야해.
-5. 보호자에게 감사한 마음과 사랑하는 마음을 많이 담아줘
+4. ${ownerNickname}에게 감사한 마음과 사랑하는 마음을 많이 담아줘
+5. 가상의 일을 지어내서 얘기하지는 말고 사실 기반으로 작성해줘.
+6. 오늘의 참고데이터가 없다면 오늘의 기분을 표현해줘
+7. 존댓말은 쓰지마
 
 
 ## 응답 형식
